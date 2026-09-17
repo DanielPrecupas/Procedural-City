@@ -101,7 +101,7 @@ export default class PolygonUtil {
         // Shape index
         // Using rectangle ratio of 1:4 as limit
         // if (area / perimeter * perimeter < 0.04) {
-        if (area / (perimeter * perimeter) < 0.04) {
+        if (area / (perimeter * perimeter) < 0.02) {
             return [];
         }
 

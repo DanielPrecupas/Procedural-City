@@ -52,12 +52,15 @@ class Main {
     private cameraY = 0;
 
     private firstGenerate = true;  // Don't randomise tensor field on first generate
+    private cityStyle: string = 'American';
     private modelGenerator: ModelGenerator;
 
     constructor() {
         // GUI Setup
         const zoomController = this.gui.add(this.domainController, 'zoom');
         this.domainController.setZoomUpdate(() => zoomController.updateDisplay());
+        this.gui.add(this, 'cityStyle', ['American', 'Paris', 'Barcelona', 'Prague'])
+            .name('City Style');
         this.gui.add(this, 'generate');
 
         this.tensorFolder = this.gui.addFolder('Tensor Field');
@@ -131,11 +134,17 @@ class Main {
      */
     generate(): void {
         if (!this.firstGenerate) {
-            this.tensorField.setRecommended();
+            switch (this.cityStyle) {
+                case 'Paris':       this.tensorField.setParis();     break;
+                case 'Barcelona':   this.tensorField.setBarcelona(); break;
+                case 'Prague':      this.tensorField.setPrague();    break;
+                default:            this.tensorField.setRecommended();
+            }
         } else {
             this.firstGenerate = false;
         }
-        
+
+        this.mainGui.applyPreset(this.cityStyle);
         this.mainGui.generateEverything();
     }
 

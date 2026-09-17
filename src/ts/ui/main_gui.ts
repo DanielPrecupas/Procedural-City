@@ -1,4 +1,5 @@
 import * as log from 'loglevel';
+import Util from '../util';
 import DomainController from './domain_controller';
 import TensorField from '../impl/tensor_field';
 import {RK4Integrator} from '../impl/integrator';
@@ -184,6 +185,49 @@ export default class MainGUI {
         this.minorRoads.setPostGenerateCallback(() => {
             this.addParks();
         });
+    }
+
+    /**
+     * Applies city-style presets for road density, parks, and buildings.
+     * Call before generateEverything() to take effect.
+     */
+    applyPreset(style: string): void {
+        switch (style) {
+            case 'Paris':
+                // Pure radial network → wedge/triangular blocks between radiating boulevards
+                // Higher joinangle lets roads connect at acute angles (sharper intersections)
+                // High chanceNoDivide keeps whole triangular block as one building perimeter
+                this.minorParams.dsep = 14;   this.minorParams.dtest = 10;  this.minorParams.joinangle = 0.2;
+                this.majorParams.dsep = 65;   this.majorParams.dtest = 20;  this.majorParams.dlookahead = 150;  this.majorParams.joinangle = 0.2;
+                this.mainParams.dsep  = 250;  this.mainParams.dtest  = 120; this.mainParams.dlookahead  = 400;  this.mainParams.joinangle  = 0.2;
+                this.numBigParks = 1;         this.numSmallParks = 5;
+                this.buildings.setEuropeanMode(true, {chanceNoDivide: 0.6, shrinkSpacing: 1.5, minArea: 25});
+                break;
+            case 'Barcelona':
+                // 45° Eixample grid: regular but angled, moderate sharpness
+                this.minorParams.dsep = 16;   this.minorParams.dtest = 12;  this.minorParams.joinangle = 0.15;
+                this.majorParams.dsep = 75;   this.majorParams.dtest = 25;  this.majorParams.dlookahead = 160;  this.majorParams.joinangle = 0.15;
+                this.mainParams.dsep  = 280;  this.mainParams.dtest  = 140; this.mainParams.dlookahead  = 420;  this.mainParams.joinangle  = 0.15;
+                this.numBigParks = 1;         this.numSmallParks = 3;
+                this.buildings.setEuropeanMode(true, {chanceNoDivide: 0.3, shrinkSpacing: 2, minArea: 30});
+                break;
+            case 'Prague':
+                // Pure organic radials, very tight streets, many irregular triangular blocks
+                // Highest joinangle: roads connect at any angle → most triangular blocks
+                this.minorParams.dsep = 12;   this.minorParams.dtest = 9;   this.minorParams.joinangle = 0.25;
+                this.majorParams.dsep = 55;   this.majorParams.dtest = 18;  this.majorParams.dlookahead = 130;  this.majorParams.joinangle = 0.25;
+                this.mainParams.dsep  = 200;  this.mainParams.dtest  = 100; this.mainParams.dlookahead  = 350;  this.mainParams.joinangle  = 0.25;
+                this.numBigParks = 2;         this.numSmallParks = 6;
+                this.buildings.setEuropeanMode(true, {chanceNoDivide: 0.5, shrinkSpacing: 2, minArea: 20});
+                break;
+            default: // American
+                this.minorParams.dsep = 20;   this.minorParams.dtest = 15;  this.minorParams.joinangle = 0.1;
+                this.majorParams.dsep = 100;  this.majorParams.dtest = 30;  this.majorParams.dlookahead = 200;  this.majorParams.joinangle = 0.1;
+                this.mainParams.dsep  = 400;  this.mainParams.dtest  = 200; this.mainParams.dlookahead  = 500;  this.mainParams.joinangle  = 0.1;
+                this.numBigParks = 2;         this.numSmallParks = 0;
+                this.buildings.setEuropeanMode(false);
+        }
+        Util.updateGui(this.guiFolder);
     }
 
     addParks(): void {

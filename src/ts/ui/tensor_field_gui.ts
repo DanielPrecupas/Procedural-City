@@ -32,6 +32,16 @@ export default class TensorFieldGUI extends TensorField {
         this.guiFolder.add(tensorFieldGuiObj, 'setRecommended');
         this.guiFolder.add(tensorFieldGuiObj, 'addRadial');
         this.guiFolder.add(tensorFieldGuiObj, 'addGrid');
+
+        const cityPresetsObj = {
+            Paris: (): void => this.setParis(),
+            Barcelona: (): void => this.setBarcelona(),
+            Prague: (): void => this.setPrague(),
+        };
+        const presetsFolder = this.guiFolder.addFolder('City Presets');
+        presetsFolder.add(cityPresetsObj, 'Paris');
+        presetsFolder.add(cityPresetsObj, 'Barcelona');
+        presetsFolder.add(cityPresetsObj, 'Prague');
     }
 
     /**
@@ -48,6 +58,106 @@ export default class TensorFieldGUI extends TensorField {
         this.addGridAtLocation(newOrigin.clone().add(new Vector(size.x, 0)));
         this.addGridAtLocation(newOrigin.clone().add(new Vector(0, size.y)));
         this.addRadialRandom();
+    }
+
+    /**
+     * Paris: radiating boulevards from multiple grandes places.
+     * Dominated by radial fields (Place de l'Étoile, Bastille, République…)
+     * with one weak background grid for the underlying street fabric.
+     */
+    setParis(): void {
+        this.reset();
+        const worldDim = this.domainController.worldDimensions;
+        const centre = this.domainController.origin.clone().add(worldDim.clone().divideScalar(2));
+
+        // Dominant central radial — Place de l'Étoile / Arc de Triomphe
+        // High decay + large size = roads strongly radiate from here across the whole map
+        this.addRadial(centre, worldDim.x / 1.8, Util.randomRange(70, 55));
+
+        // 5 satellite grandes places — evenly spaced with a random phase offset
+        // Each one pulls roads toward it, creating wedge-shaped blocks between them
+        const phaseOffset = Util.randomRange(Math.PI * 2);
+        for (let i = 0; i < 5; i++) {
+            const angle = (i / 5) * Math.PI * 2 + phaseOffset;
+            const dist = Util.randomRange(worldDim.x / 2.8, worldDim.x / 3.8);
+            const loc = new Vector(
+                centre.x + Math.cos(angle) * dist,
+                centre.y + Math.sin(angle) * dist,
+            );
+            this.addRadial(loc, Util.randomRange(worldDim.x / 5, worldDim.x / 8), Util.randomRange(65, 40));
+        }
+        // No grid — pure radial network; roads cross at acute angles → triangular/wedge blocks
+    }
+
+    /**
+     * Barcelona: the Cerdà Eixample grid at 45° with a radial Gothic quarter core.
+     * Two overlapping grids at ~45° produce the distinctive octagonal-block pattern.
+     */
+    setBarcelona(): void {
+        this.reset();
+        const worldDim = this.domainController.worldDimensions;
+        const centre = this.domainController.origin.clone().add(worldDim.clone().divideScalar(2));
+        const eixampleAngle = Math.PI / 4 + Util.randomRange(Math.PI / 16) - Math.PI / 32;
+
+        // Primary Eixample grid
+        this.addGrid(centre, worldDim.x * 0.85, Util.randomRange(35, 20), eixampleAngle);
+
+        // Offset second grid for full coverage
+        this.addGrid(
+            centre.clone().add(new Vector(worldDim.x * 0.3, worldDim.y * 0.3)),
+            worldDim.x * 0.75, Util.randomRange(35, 20), eixampleAngle,
+        );
+
+        // Radial — Gothic quarter (the organic medieval core offset from Eixample centre)
+        this.addRadial(
+            centre.clone().add(new Vector(-worldDim.x * 0.12, worldDim.y * 0.08)),
+            worldDim.x / 5, Util.randomRange(50, 30),
+        );
+
+        // Avinguda Diagonal — a grid slice at a shallower angle
+        this.addGrid(
+            centre.clone().add(new Vector(-worldDim.x * 0.1, worldDim.y * 0.15)),
+            worldDim.x * 0.65, Util.randomRange(25, 12),
+            eixampleAngle + Math.PI / 12,
+        );
+    }
+
+    /**
+     * Prague: organic medieval core.
+     * Multiple clustered radials (Old Town Sq, Castle District, New Town)
+     * with no background grid for maximum organic character.
+     */
+    setPrague(): void {
+        this.reset();
+        const worldDim = this.domainController.worldDimensions;
+        const centre = this.domainController.origin.clone().add(worldDim.clone().divideScalar(2));
+
+        // Old Town Square — dominant central radial
+        this.addRadial(centre, worldDim.x / 3, Util.randomRange(70, 50));
+
+        // Hradčany (Castle District) — offset up-left across the "river"
+        this.addRadial(
+            centre.clone().add(new Vector(-worldDim.x * 0.28, -worldDim.y * 0.22)),
+            worldDim.x / 5, Util.randomRange(60, 40),
+        );
+
+        // New Town — Wenceslas Square axis, offset right
+        this.addRadial(
+            centre.clone().add(new Vector(worldDim.x * 0.22, worldDim.y * 0.18)),
+            worldDim.x / 6, Util.randomRange(50, 30),
+        );
+
+        // 2 smaller neighbourhood radials
+        for (let i = 0; i < 2; i++) {
+            const angle = (i / 2) * Math.PI + Util.randomRange(Math.PI / 3);
+            const dist = Util.randomRange(worldDim.x / 3, worldDim.x / 4);
+            const loc = new Vector(
+                centre.x + Math.cos(angle) * dist,
+                centre.y + Math.sin(angle) * dist,
+            );
+            this.addRadial(loc, Util.randomRange(worldDim.x / 9, worldDim.x / 12), Util.randomRange(45, 25));
+        }
+        // Intentionally no grid — pure organic radial network
     }
 
     addRadialRandom(): void {
@@ -160,6 +270,8 @@ export default class TensorFieldGUI extends TensorField {
         // TODO kind of hacky - calling remove callbacks from gui object, should store callbacks
         // in addfield and call them (requires making sure they're idempotent)
         for (const fieldFolderName in this.guiFolder.__folders) {
+            // Skip non-field folders (e.g. City Presets) — only basis field folders have a 'remove' first controller
+            if (fieldFolderName === 'City Presets') continue;
             const fieldFolder = this.guiFolder.__folders[fieldFolderName];
             (fieldFolder.__controllers[0] as any).initialValue();
         }

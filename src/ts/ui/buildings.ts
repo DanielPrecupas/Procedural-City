@@ -22,10 +22,10 @@ class BuildingModels {
     private domainController = DomainController.getInstance();
     private _buildingModels: BuildingModel[] = [];
 
-    constructor(lots: Vector[][]) {  // Lots in world space
+    constructor(lots: Vector[][], private european = false) {  // Lots in world space
         for (const lot of lots) {
             this._buildingModels.push({
-                height: Math.random() * 20 + 20,
+                height: european ? Math.random() * 15 + 35 : Math.random() * 20 + 20,
                 lotWorld: lot,
                 lotScreen: [],
                 roof: [],
@@ -87,6 +87,8 @@ export default class Buildings {
     private _models: BuildingModels = new BuildingModels([]);
     private _blocks: Vector[][] = [];
 
+    private europeanMode: boolean = false;
+
     private buildingParams: PolygonParams = {
         maxLength: 20,
         minArea: 50,
@@ -104,6 +106,20 @@ export default class Buildings {
         folder.add(this.buildingParams, 'shrinkSpacing');
         folder.add(this.buildingParams, 'chanceNoDivide');
         this.polygonFinder = new PolygonFinder([], this.buildingParams, this.tensorField);
+    }
+
+    setEuropeanMode(european: boolean, overrides: Partial<PolygonParams> = {}): void {
+        this.europeanMode = european;
+        if (european) {
+            this.buildingParams.minArea = 25;
+            this.buildingParams.shrinkSpacing = 2;
+            this.buildingParams.chanceNoDivide = 0.4;
+            Object.assign(this.buildingParams, overrides);
+        } else {
+            this.buildingParams.minArea = 50;
+            this.buildingParams.shrinkSpacing = 4;
+            this.buildingParams.chanceNoDivide = 0.05;
+        }
     }
 
     set animate(v: boolean) {
@@ -157,7 +173,7 @@ export default class Buildings {
         await this.polygonFinder.shrink(animate);
         await this.polygonFinder.divide(animate);
         this.redraw();
-        this._models = new BuildingModels(this.polygonFinder.polygons);
+        this._models = new BuildingModels(this.polygonFinder.polygons, this.europeanMode);
 
         this.postGenerateCallback();
     }
